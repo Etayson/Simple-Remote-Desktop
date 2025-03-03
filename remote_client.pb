@@ -1,4 +1,4 @@
-﻿EnableExplicit
+EnableExplicit
 IncludeFile "Curve64Unicode.pb"
 Structure settingsStructure
   host.s
@@ -52,6 +52,8 @@ Structure settingsStructure
   TransferName.s
   WpartX.i
   WpartY.i
+  partX.i
+  partY.i
 EndStructure
 
 Structure jobtructure
@@ -734,109 +736,6 @@ Procedure MouseMBup()
   mouse_event_(#MOUSEEVENTF_MIDDLEUP,0,0,0,0)  
 EndProcedure
 
-Procedure m_check_equilASM(*s,*t, w, h, linelenght, depth)  
-  !mov r10,[p.v_linelenght]
-  !mov rsi,[p.p_s]  
-  !mov rdi,[p.p_t]  
-  !mov r9, rsi
-  !mov r8, rdi
-  
-  !mov ch,[p.v_depth]
-  !mov cl,ch
-  !mov dl,[p.v_w]
-  !mov dh,[p.v_h]
-  !llm_check_equil_continue2:
-  
-  !mov al,[rsi]
-  !mov bl,[rdi]
-  !add rsi,1
-  !add rdi,1 
-  
-  !cmp al,bl
-  !jne llm_check_equil_exit_noteqil2
-  !dec cl
-  !cmp cl,0  
-  !jnz llm_check_equil_continue2
-  !mov cl,ch
-  
-  
-  !dec dl 
-  !cmp dl,0  
-  !jnz llm_check_equil_continue2
-  !mov dl,[p.v_w]
-  !dec dh
-  !cmp dh,0
-  !jz llm_check_equil2
-  !mov rsi, r9
-  !mov rdi, r8
-  
-  !mov rax,r10
-  !add rsi,rax
-  !add rdi,rax
-  !mov r9, rsi
-  !mov r8, rdi
-  
-  !jmp llm_check_equil_continue2  
-  
-  !llm_check_equil2:  
-  !mov rax,1
-  !jmp llm_check_equil_exit2
-  
-  !llm_check_equil_exit_noteqil2:  
-  !mov rax,0
-  !llm_check_equil_exit2:
-  
-  ProcedureReturn  
-EndProcedure
-
-Procedure CopyRectangleASM(*s,*t, w, h, linelenghtS, linelenghtT, depth)
-  
-  !mov r10,[p.v_linelenghtS]  
-  !mov r11,[p.v_linelenghtT]
-  !mov rsi,[p.p_s]  
-  !mov rdi,[p.p_t]  
-  !mov r9, rsi
-  !mov r8, rdi
-  
-  !mov ch,[p.v_depth]
-  !mov cl,ch
-  !mov dl,[p.v_w]
-  !mov dh,[p.v_h]
-  !copy_continue:
-  
-  !mov al,[rsi]
-  !mov [rdi], al
-  !add rsi,1
-  !add rdi,1 
-  
-  !dec cl
-  !cmp cl,0  
-  !jnz copy_continue
-  !mov cl,ch
-  
-  
-  !dec dl 
-  !cmp dl,0  
-  !jnz copy_continue
-  !mov dl,[p.v_w]
-  !dec dh
-  !cmp dh,0
-  !jz copy_exit
-  !mov rsi, r9
-  !mov rdi, r8
-  
-  !mov rax,r10
-  !add rsi,rax
-  !mov rax,r11
-  !add rdi,rax
-  !mov r9, rsi
-  !mov r8, rdi
-  
-  !jmp copy_continue  
-  
-  !copy_exit:  
-  
-EndProcedure
 
 Procedure CopyRectangle(*s,*t, w, h, linelenghtS, linelenghtT, depth)
   Protected *localS, *localT, localH
@@ -967,13 +866,15 @@ Procedure addPart(i)
                 settings()\WpartY = WpartY
                 partX = req(jobkey$)\partX
                 partY = req(jobkey$)\partY  
+                settings()\partX=partX
+                settings()\partY=partY
                 size = MemorySize(req(jobkey$)\pointer)
                 UnlockMutex(jobMutex)
                 
                 
                 
                 copiedElements = PeekU(*Buffer)
-                possize = 2 +  copiedElements * 2
+                possize = 2 +  copiedElements * 4
                 imagsize = size - possize
                 
                 *BufferAES = AllocateMemory(imagsize)
@@ -1059,12 +960,12 @@ Procedure addPart(i)
                   copiedElementsTemp = copiedElements
                   While copiedElementsTemp
                     
-                    j = PeekA(*pointerPosAyyay)
-                    i = PeekA(*pointerPosAyyay + 1)
-                    *pointerPosAyyay + 2
+                    j = PeekU(*pointerPosAyyay)
+                    i = PeekU(*pointerPosAyyay + 2)
+                    *pointerPosAyyay + 4
                     addpointer = i * WpartY * buflinewidth + j * WpartX * depth
                     addpointerx = ix * WpartY * buflinewidthOld + jx * WpartX * depth
-                    CopyRectangleASM( *bufPointer + addpointerx, *ImageAddress + addpointer, WpartX, WpartY, buflinewidthOld, buflinewidth, depth)
+                    CopyRectangle( *bufPointer + addpointerx, *ImageAddress + addpointer, WpartX, WpartY, buflinewidthOld, buflinewidth, depth)
                     jx+1
                     If jx>=partX
                       ix+1
@@ -1075,12 +976,7 @@ Procedure addPart(i)
                   
                   StopDrawing()
                   
-                  If settings("1")\canvasH = h And settings("1")\canvasW = w
-                    Debug "No resize"
-                    SetGadgetAttribute(#CanvasGaget, #PB_Canvas_Image , ImageID(1))
-                  Else
-                    scalex = h/w                  
-                    CopyImage(1, 5)
+                  CopyImage(1, 5)
                     
                     ;StartDrawing(ImageOutput(5))
                     ;DrawingMode(#PB_2DDrawing_Outlined )
@@ -1088,14 +984,21 @@ Procedure addPart(i)
                     ;copiedElementsTemp = copiedElements
                     ;*pointerPosAyyay = *posArray
                     ;While copiedElementsTemp
-                    ;j = PeekA(*pointerPosAyyay)
-                    ;i = PeekA(*pointerPosAyyay + 1)
-                    ;*pointerPosAyyay + 2
+                    ;j = PeekU(*pointerPosAyyay)
+                    ;i = PeekU(*pointerPosAyyay + 2)
+                    ;*pointerPosAyyay + 4
                     ;Box(j * WpartX, h-(i+1) * WpartY, WpartX, WpartY, #Red)
                     ;copiedElementsTemp-1
                     ;Wend
                     ;DrawingMode(#PB_2DDrawing_Default )
                     ;StopDrawing()
+                    
+                  If settings("1")\canvasH = h And settings("1")\canvasW = w
+                    Debug "No resize"
+                    SetGadgetAttribute(#CanvasGaget, #PB_Canvas_Image , ImageID(5))
+                  Else
+                    scalex = h/w                  
+                    
                     curwinW = settings("1")\canvasW 
                     
                     If Not ResizeImage(5, curwinW , curwinW * scalex)
@@ -1355,10 +1258,10 @@ Procedure MakeScreenshot(u)
               deskH=ScreenHeight
               depth = 3
               size = depth * deskW * deskH * 2
-              partX= getpart(deskW, 64)
-              WpartX = deskW/partX
-              partY= getpart(deskH, 64)
-              WpartY= deskH/partY
+              partX= getpart(deskW, 64); number of rectangles on X axis
+              WpartX = deskW/partX; number of pixels in X axis of each rectangle
+              partY= getpart(deskH, 64); number of rectangles on Y axis
+              WpartY= deskH/partY; number of pixels in Y axis of each rectangle
               Debug "partX:"+Str(partX)+" partY:"+Str(partY)
               Debug "WpartX:"+Str(WpartX)+" WpartY:"+Str(WpartY)
               If *TemoBuffer_unalign
@@ -1370,7 +1273,7 @@ Procedure MakeScreenshot(u)
               If *BlackBuffer_unalign
                 FreeMemory(*BlackBuffer_unalign)
               EndIf
-              BlackBufferSize = size + (partX * partY * 2 + 2)
+              BlackBufferSize = size + (partX * partY * 4 + 2)
               *BlackBuffer_unalign = AllocateMemory(BlackBufferSize +  #align_size)
               *BlackBuffer= *BlackBuffer_unalign + #align_size-(*BlackBuffer_unalign % #align_size)
               
@@ -1415,7 +1318,7 @@ Procedure MakeScreenshot(u)
               *ImageAddress = DrawingBuffer()     
               buflinewidth= DrawingBufferPitch()     
               
-              *blackPointer = *BlackBuffer + (partX * partY * 2 + 2)
+              *blackPointer = *BlackBuffer + (partX * partY * 4 + 2)
               *blackPos = *BlackBuffer + 2
               copiedElements = 0
               ix=0
@@ -1425,9 +1328,9 @@ Procedure MakeScreenshot(u)
                   addpointer = i * WpartY * buflinewidth + j * WpartX * depth
                   isEquil = m_check_equil(*ImageAddress + addpointer,*TemoBuffer + addpointer, WpartX, WpartY, buflinewidth, depth)          
                   If Not isEquil
-                    PokeA(*blackPos, j)
-                    PokeA(*blackPos+1, i)
-                    *blackPos + 2
+                    PokeU(*blackPos, j)
+                    PokeU(*blackPos+2, i)
+                    *blackPos + 4
                     addpointerx = ix * WpartY * buflinewidth + jx * WpartX * depth
                     CopyRectangle( *ImageAddress + addpointer, *blackPointer + addpointerx, WpartX, WpartY, buflinewidth, buflinewidth, depth)  
                     jx+1
@@ -1468,7 +1371,7 @@ Procedure MakeScreenshot(u)
                   StartDrawing(ImageOutput(3)) 
                   *ImageAddress = DrawingBuffer()  
                   buflinewidth= DrawingBufferPitch()
-                  *blackPointer = *BlackBuffer + (partX * partY * 2 + 2)
+                  *blackPointer = *BlackBuffer + (partX * partY * 4 + 2)
                   
                     ix=0
                     jx=0
@@ -1497,7 +1400,7 @@ Procedure MakeScreenshot(u)
                   
                   
                   settings("1")\currentJob + 1
-                  possize = 2 + copiedElements * 2
+                  possize = 2 + copiedElements * 4
                   
                   TransferFilesize = MemorySize(*Buffer) + possize
                   *transferBuffer = AllocateMemory(TransferFilesize)
@@ -2565,7 +2468,7 @@ If OpenWindow(0, (GetSystemMetrics_(#SM_CXSCREEN)-600)/2, (GetSystemMetrics_(#SM
       a$ = "Total:"+StrD(totalsended/1024,2)+"Mb " + StrD(Kbsecond,2)+" Kb/s"
       If settings("1")\Role = 0 And settings("1")\isReadyRecieve
         a$ = "["+ Str(MapSize(req() ))+ "] " + a$
-        a$ + " ("+Str(settings("1")\frameW) + "x"+ Str(settings("1")\frameH) +"["+Str(settings()\Wpartx)+"x"+Str(settings()\WpartY)+"]) => ("+Str(settings("1")\canvasW)+"x"+Str( settings("1")\canvasH)+")"
+        a$ + " ("+Str(settings("1")\frameW) + "x"+ Str(settings("1")\frameH) +"[Rect: "+Str(settings()\partX)+"x"+Str(settings()\partY)+"][Px: "+Str(settings()\WpartX)+"x"+Str(settings()\WpartY)+"]) => ("+Str(settings("1")\canvasW)+"x"+Str( settings("1")\canvasH)+")"
       EndIf
       
         If MapSize(keybardmap())
@@ -2579,7 +2482,7 @@ If OpenWindow(0, (GetSystemMetrics_(#SM_CXSCREEN)-600)/2, (GetSystemMetrics_(#SM
     If Event
       Select Event
         Case #PB_Event_SizeWindow
-          resizeCanvas(#CanvasGaget, settings("1")\frameW, settings("1")\frameH)          
+          resizeCanvas(#CanvasGaget, settings("1")\frameW, settings("1")\frameH)        
         Case #PB_Event_CloseWindow
           settings("1")\quit = #True
           settings("1")\thrAPquit = #True
@@ -2750,14 +2653,3 @@ If OpenWindow(0, (GetSystemMetrics_(#SM_CXSCREEN)-600)/2, (GetSystemMetrics_(#SM
   
   Delay(1000)
 EndIf
-
-
-; IDE Options = PureBasic 5.31 (Windows - x64)
-; CursorPosition = 442
-; FirstLine = 417
-; Folding = +--------
-; EnableUnicode
-; EnableThread
-; EnableAdmin
-; Executable = remote_client4.exe
-; DisableDebugger
